@@ -19,9 +19,9 @@ sudo service mysql start
 
 # Log into MySQL as root, create database, and grant access to new user
 sudo mysql -u root -p'your_root_password' <<EOF
-CREATE DATABASE dev_db;
-CREATE USER 'dev_user'@'localhost' IDENTIFIED BY 'pass';
-GRANT ALL PRIVILEGES ON dev_db.* TO 'dev_user'@'localhost';
+CREATE DATABASE eidetic;
+CREATE USER 'eidetic'@'localhost' IDENTIFIED BY 'eideticpass';
+GRANT ALL PRIVILEGES ON eidetic.* TO 'eidetic'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
