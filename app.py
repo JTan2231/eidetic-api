@@ -40,6 +40,11 @@ def create_app():
         hash = db.Column(db.String(64), nullable=False)
         creation_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+    class NoteEdge(db.Model):
+        edge_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+        note_id_a = db.Column(db.Integer, db.ForeignKey("note.note_id"), nullable=False)
+        note_id_b = db.Column(db.Integer, db.ForeignKey("note.note_id"), nullable=False)
+
     class Embedding(db.Model):
         embedding_id = db.Column(db.Integer, primary_key=True)
         user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"), nullable=False)
@@ -64,8 +69,8 @@ def create_app():
             projection = tsne.fit_transform(embed_matrix)
 
             # transforming the projection to range [10, 90] in units of vw/vh
-            range_min = 10
-            range_max = 90
+            range_min = -1000
+            range_max = 1000
             proj_min = projection.min(axis=0)
             projection = (
                 (projection - proj_min) / (projection.max(axis=0) - proj_min)
@@ -87,17 +92,37 @@ def create_app():
     @app.route("/get-notes", methods=["GET"])
     def get_notes():
         notes_embeddings = (
-            Note.query.with_entities(Note.content, Embedding.tsne_x, Embedding.tsne_y)
+            Note.query.with_entities(
+                Note.content, Embedding.tsne_x, Embedding.tsne_y, Note.note_id
+            )
             .join(Embedding, Note.note_id == Embedding.note_id)
             .filter(Note.user_id == TEST_ID)
             .all()
         )
 
+        edges = NoteEdge.query.filter(
+            NoteEdge.note_id_a.in_([ne[3] for ne in notes_embeddings])
+        ).all()
+
+        edge_map = {}
+        for e in edges:
+            if e.note_id_a in edge_map:
+                edge_map[e.note_id_a].append(e.note_id_b)
+            else:
+                edge_map[e.note_id_a] = [e.note_id_b]
+
         return jsonify(
-            [
-                {"content": ne[0], "position": [float(ne[1]), float(ne[2])]}
-                for ne in notes_embeddings
-            ]
+            {
+                "nodes": [
+                    {
+                        "id": ne[3],
+                        "content": ne[0],
+                        "position": [float(ne[1]), float(ne[2])],
+                    }
+                    for ne in notes_embeddings
+                ],
+                "edges": [[k, v] for k, v in edge_map.items()],
+            }
         )
 
     def get_openai_embedding(content):
