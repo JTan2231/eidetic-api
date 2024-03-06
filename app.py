@@ -139,6 +139,9 @@ def create_app():
 
         return embedding
 
+    @app.route('/embedding-compare', methods=['GET'])
+    def embedding_compare()
+
     @app.route("/import-channel", methods=["POST"])
     def import_channel():
         url = "http://api.are.na/v2/channels/" + request.json["channel"] + "?per=100"
