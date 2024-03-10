@@ -25,7 +25,7 @@ def create_app():
     db = SQLAlchemy(app)
 
     # TODO: Change this when auth is implemented
-    TEST_ID = 2
+    TEST_ID = 1
 
     class User(db.Model):
         user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -38,7 +38,7 @@ def create_app():
         content = db.Column(db.Text, nullable=False)
         title = db.Column(db.String(256), nullable=False)
         hash = db.Column(db.String(64), nullable=False)
-        creation_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+        # creation_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     class NoteEdge(db.Model):
         edge_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -139,8 +139,43 @@ def create_app():
 
         return embedding
 
-    @app.route('/embedding-compare', methods=['GET'])
-    def embedding_compare()
+    @app.route("/top-k-similar", methods=["POST"])
+    def top_k_similar():
+        k = request.json["count"]
+        input_embedding = get_openai_embedding(request.json["content"])
+        embeddings = Embedding.query.filter_by(user_id=TEST_ID).all()
+
+        embed_matrix = np.vstack(
+            [np.frombuffer(e.data, dtype=np.float64) for e in embeddings]
+        )
+
+        scores = []
+        for i in range(embed_matrix.shape[0]):
+            scores.append((np.dot(input_embedding, embed_matrix[i]), i))
+
+        ids = [s[1] for s in sorted(scores, key=lambda x: x[0])]
+        ids = ids[:k]
+
+        return [embeddings[i].note_id for i in ids]
+
+    @app.route("/embedding-threshold-search", methods=["POST"])
+    def embedding_threshold_search():
+        threshold = 0.05
+        input_embedding = get_openai_embedding(request.json["content"])
+        embeddings = Embedding.query.filter_by(user_id=TEST_ID).all()
+
+        embed_matrix = np.vstack(
+            [np.frombuffer(e.data, dtype=np.float64) for e in embeddings]
+        )
+
+        scores = []
+        for i in range(embed_matrix.shape[0]):
+            scores.append((np.dot(input_embedding, embed_matrix[i]), i))
+
+        print([s[0] for s in scores])
+        ids = [s[1] for s in sorted(scores, key=lambda x: x[0]) if s[0] < threshold]
+
+        return [embeddings[i].note_id for i in ids]
 
     @app.route("/import-channel", methods=["POST"])
     def import_channel():
